@@ -1,0 +1,9 @@
+local_db:
+  dsn: 'localhost:localtest2'
+  user: 'sysdba'
+  password: 'masterkey'
+
+remote_db_query: 'SELECT remote_dsn, remote_user, remote_password FROM db_config WHERE id=1;'
+
+log:
+  file: 'abasyn.log'
