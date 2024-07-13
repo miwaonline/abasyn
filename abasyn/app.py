@@ -1,27 +1,31 @@
-import threading
+import signal
 import sys
 from flask import Flask
 from api import api
-from event_processor import (
-    start_listening, start_processing, stop_event_processing
-)
 from sysutils import logger
+from db import (
+    start_listening,
+    stop_event_processing,
+)
 
 app = Flask(__name__)
 app.register_blueprint(api)
 
 
 def signal_handler(sig, frame):
-    logger.info('Gracefully shutting down...')
+    logger.info("Gracefully shutting down...")
     stop_event_processing()
+    logger.info("Shutdown complete.")
     sys.exit(0)
 
 
 def main():
-    start_listening()
-    threading.Thread(target=start_processing).start()
-    app.run(debug=True)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGHUP, signal_handler)
+    listener_thread = start_listening()
+    app.run(debug=False)
+    listener_thread.join()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
