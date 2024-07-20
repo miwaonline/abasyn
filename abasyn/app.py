@@ -2,9 +2,9 @@ import signal
 import sys
 from flask import Flask
 from api import api
-from sysutils import logger
+from sysutils import logger, config
 from db import (
-    start_listening,
+    listener_thread,
     stop_event_processing,
 )
 
@@ -13,18 +13,24 @@ app.register_blueprint(api)
 
 
 def signal_handler(sig, frame):
-    logger.info("Gracefully shutting down...")
-    stop_event_processing()
-    logger.info("Shutdown complete.")
-    sys.exit(0)
+    try:
+        stop_event_processing()
+        sys.exit(0)
+    except Exception as e:
+        logger.info("Exiting failed: %s", e)
 
 
 def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGHUP, signal_handler)
-    listener_thread = start_listening()
-    app.run(debug=False)
-    listener_thread.join()
+    listener = listener_thread()
+    app.run(debug=False, host="0.0.0.0", port=config["webservice"]["port"])
+    try:
+        logger.info("Joining the listener thread")
+        listener.join()
+        logger.info("Listener thread joined")
+    except Exception as e:
+        logger.info("Listener thread join failed: %s", e)
 
 
 if __name__ == "__main__":
