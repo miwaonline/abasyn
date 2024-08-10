@@ -120,7 +120,7 @@ class ListeningThread(threading.Thread):
                 with self.local_conn.event_conduit(
                     self.event_list
                 ) as event_cond:
-                    events = event_cond.wait()
+                    events = event_cond.wait(0)
                     if (
                         (events is not None)
                         and len(events)
@@ -185,34 +185,44 @@ def levenshtein_distance_operations(list1, list2):
     for i in range(len_list1):
         matrix[i][0] = i
         if i > 0:
-            operations[i][0] = operations[i-1][0] + [("delete", list1[i-1], i-1)]
+            operations[i][0] = operations[i - 1][0] + [
+                ("delete", list1[i - 1], i - 1)
+            ]
     for j in range(len_list2):
         matrix[0][j] = j
         if j > 0:
-            operations[0][j] = operations[0][j-1] + [("insert", list2[j-1], j-1)]
+            operations[0][j] = operations[0][j - 1] + [
+                ("insert", list2[j - 1], j - 1)
+            ]
     # Compute the Levenshtein distance and operations
     for i in range(1, len_list1):
         for j in range(1, len_list2):
-            if list1[i-1] == list2[j-1]:
+            if list1[i - 1] == list2[j - 1]:
                 cost = 0
                 operation = []
             else:
                 cost = 1
-                operation = [("substitute", list1[i-1], list2[j-1], i-1, j-1)]
+                operation = [
+                    ("substitute", list1[i - 1], list2[j - 1], i - 1, j - 1)
+                ]
 
-            deletion_cost = matrix[i-1][j] + 1
-            insertion_cost = matrix[i][j-1] + 1
-            substitution_cost = matrix[i-1][j-1] + cost
+            deletion_cost = matrix[i - 1][j] + 1
+            insertion_cost = matrix[i][j - 1] + 1
+            substitution_cost = matrix[i - 1][j - 1] + cost
 
             min_cost = min(deletion_cost, insertion_cost, substitution_cost)
             matrix[i][j] = min_cost
 
             if min_cost == deletion_cost:
-                operations[i][j] = operations[i-1][j] + [("delete", list1[i-1], i-1)]
+                operations[i][j] = operations[i - 1][j] + [
+                    ("delete", list1[i - 1], i - 1)
+                ]
             elif min_cost == insertion_cost:
-                operations[i][j] = operations[i][j-1] + [("insert", list2[j-1], j-1)]
+                operations[i][j] = operations[i][j - 1] + [
+                    ("insert", list2[j - 1], j - 1)
+                ]
             else:
-                operations[i][j] = operations[i-1][j-1] + operation
+                operations[i][j] = operations[i - 1][j - 1] + operation
 
     return matrix[-1][-1], operations[-1][-1]
 
@@ -224,12 +234,13 @@ def check_tovar_id(tovar_id):
     cur = local.cursor()
     cur.execute("SELECT dbname, dbuser, dbpass FROM rpl_databases")
     dsn, user, password = cur.fetchone()
-    sql = ("select tovar_id, tovar_code, cast(date_op as char(10)), amount, pos_id, doc_id, "
-           "doc_type, snd_storage, rcv_storage "
-           "from m_tovar "
-           f"where tovar_id = {tovar_id}"
-           "order by date_op, id")
-    cur.execute(sql)
+    sql = (
+        "select tovar_id, tovar_code, cast(date_op as char(10)), amount,"
+        "pos_id, doc_id, doc_type, snd_storage, rcv_storage "
+        "from m_tovar where tovar_id = ?"
+        "order by date_op, id"
+    )
+    cur.execute(sql, (tovar_id))
     local_result = cur.fetchall()
     local.close()
     remote = connect_to_database(dsn, user, password)
@@ -239,11 +250,13 @@ def check_tovar_id(tovar_id):
     cur.execute(sql)
     remote_result = cur.fetchall()
     remote.close()
-    distance, operations = levenshtein_distance_operations(local_result, remote_result)
+    distance, operations = levenshtein_distance_operations(
+        local_result, remote_result
+    )
     return {
         "status": "ok",
         "local_length": len(local_result),
         "remote_length": len(remote_result),
         "distance": distance,
-        "operations": operations
+        "operations": operations,
     }
