@@ -4,6 +4,7 @@ import time
 import datetime
 import fdb
 from sysutils import logger, config
+import platform
 
 event_queue = queue.Queue()
 stop_event = threading.Event()
@@ -59,7 +60,7 @@ class ProcessingThread(threading.Thread):
 class ListeningThread(threading.Thread):
     def __init__(self, event_list):
         super().__init__()
-        self.localdb_config = config["local_db"]
+        self.masterdb = config["database"]
         self.local_conn = None
         self.event_list = event_list
         self.processing_thread = None
@@ -111,16 +112,20 @@ class ListeningThread(threading.Thread):
     # "fdb error while cancelling events" for details.
 
     def run(self):
-        self.local_conn = connect_to_database(**self.localdb_config)
+        self.local_conn = connect_to_database(**self.masterdb)
         if self.local_conn is None:
             return
         logger.info("Started listening for replicate events")
+        if platform.system() == "Windows":
+            timeout = 3
+        else:
+            timeout = 0
         try:
             while not stop_event.is_set():
                 with self.local_conn.event_conduit(
                     self.event_list
                 ) as event_cond:
-                    events = event_cond.wait(0)
+                    events = event_cond.wait(timeout)
                     if (
                         (events is not None)
                         and len(events)

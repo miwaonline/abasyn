@@ -1,6 +1,6 @@
 webservice:
   port: 5000
-local_db:
+database:
   dsn: 'localhost:localtest1'
   user: 'sysdba'
   password: 'masterkey'
