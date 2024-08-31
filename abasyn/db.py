@@ -37,6 +37,9 @@ class ProcessingThread(threading.Thread):
                 self.local_connect.rollback()
                 # push replication data to remote db
                 remotecur = self.remote_connect.cursor()
+                q = ("select rdb$set_context('USER_SESSION', "
+                     "'replicating_now', 1) from rdb$database")
+                remotecur.execute(q)
                 for change in changes:
                     logger.debug(f"Pushing change: {change[1]}")
                     remotecur.execute(change[1])
@@ -119,7 +122,7 @@ class ListeningThread(threading.Thread):
         if platform.system() == "Windows":
             timeout = 3
         else:
-            timeout = 0
+            timeout = None
         try:
             while not stop_event.is_set():
                 with self.local_conn.event_conduit(
@@ -129,7 +132,7 @@ class ListeningThread(threading.Thread):
                     if (
                         (events is not None)
                         and len(events)
-                        and (events.get("replicate", 0) > 0)
+                        and (events.get(self.event_list[0], 0) > 0)
                     ):
                         logger.info(f"Received event: {events}")
                         event_queue.put(events)

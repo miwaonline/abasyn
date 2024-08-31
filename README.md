@@ -1,3 +1,1 @@
 Abasyn is being developed to synchronise Firebird-powered databases used by in-house accounting application called Abacus. It listens to the configured database event which is sent from the server when some data is ready for replication. Upon receiving the event, Abasyn pulls the data from the database and sends to the databases-receivers. Once completed, it cleans up the temporary tables and waits until next event. Also it provides some simple REST API.
-
-Once everything above is properly implemented this file will be updated with all the relevant details and exaplanations.
