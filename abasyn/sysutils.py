@@ -17,6 +17,7 @@ log_format = logging.Formatter(
 )
 file_handler = logging.FileHandler(config['log']['file'])
 file_handler.setFormatter(log_format)
+logger.setLevel(logging.INFO)
 
 if sys.stdin and sys.stdin.isatty() and 'unittest' not in sys.modules.keys():
     console_handler = logging.StreamHandler()
@@ -25,5 +26,4 @@ if sys.stdin and sys.stdin.isatty() and 'unittest' not in sys.modules.keys():
     logger.addHandler(file_handler)
 else:
     logger.addHandler(file_handler)
-
-logger.setLevel(logging.INFO)
+logger.propagate = False

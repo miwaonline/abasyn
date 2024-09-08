@@ -28,29 +28,41 @@ class ProcessingThread(threading.Thread):
         try:
             while not stop_event.is_set() and not event_queue.empty():
                 event = event_queue.get()
-                logger.info(f"Processing event: {event}")
+                logger.info(
+                    f"Received event {event}, "
+                    f"process everything above {last_id}"
+                )
                 # pull replication data from local db
                 localcur = self.local_connect.cursor()
-                sql = f"select id, rpl_sql from rpl_log where id > {last_id}"
-                localcur.execute(sql)
+                sql = ("select id, rpl_sql from rpl_log "
+                       "where id > ? order by id")
+                localcur.execute(sql, [last_id])
                 changes = localcur.fetchall()
                 self.local_connect.rollback()
                 # push replication data to remote db
                 remotecur = self.remote_connect.cursor()
-                q = ("select rdb$set_context('USER_SESSION', "
-                     "'replicating_now', 1) from rdb$database")
-                remotecur.execute(q)
+                sql = (
+                    "select rdb$set_context('USER_SESSION', "
+                    "'replicating_now', 1) from rdb$database"
+                )
+                remotecur.execute(sql)
                 for change in changes:
                     logger.debug(f"Pushing change: {change[1]}")
                     remotecur.execute(change[1])
                     self.records_processed += 1
                     last_pushed_id = change[0]
                 self.remote_connect.commit()
-                # update last_id
-                sql = f"update rpl_databases set last_id = {last_pushed_id}"
+                logger.info(f"Pushed {self.records_processed} records")
+                # clean up local db
+                sql = "update rpl_databases set last_id = ?"
+                localcur.execute(sql, [last_pushed_id])
+                sql = (
+                    "delete from rpl_log where id <= (select min(last_id)"
+                    " from rpl_databases)"
+                )
                 localcur.execute(sql)
                 self.local_connect.commit()
-                logger.info(f"Pushed {self.records_processed} records")
+                logger.info("Cleaned up local db")
         except fdb.fbcore.DatabaseError as e:
             logger.error(f"Failed to process event, DB error: {e}")
         except Exception as e:
@@ -83,6 +95,8 @@ class ListeningThread(threading.Thread):
         timenow = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.remote_connect_time = timenow
         self.processing_thread.join()
+        self.records_processed += self.processing_thread.records_processed
+        self.processing_thread = None
 
     def status(self):
         if self.processing_thread and self.processing_thread.is_alive():
@@ -161,7 +175,9 @@ def connect_to_database(dsn, user, password, timeout=60):
                 )
                 return None
             logger.info(f"Trying to connect to {dsn}")
-            con = fdb.connect(dsn=dsn, user=user, password=password)
+            con = fdb.connect(
+                dsn=dsn, user=user, password=password, charset="UTF8"
+            )
             logger.info(f"Successfully connected to {dsn}")
             return con
         except fdb.fbcore.DatabaseError as e:
@@ -236,9 +252,9 @@ def levenshtein_distance_operations(list1, list2):
 
 
 def check_tovar_id(tovar_id):
-    local = connect_to_database(**config["local_db"])
+    local = connect_to_database(**config["database"])
     if local is None:
-        return {"status": "local db not available"}
+        return {"status": "Local database is not available"}
     cur = local.cursor()
     cur.execute("SELECT dbname, dbuser, dbpass FROM rpl_databases")
     dsn, user, password = cur.fetchone()
@@ -248,14 +264,14 @@ def check_tovar_id(tovar_id):
         "from m_tovar where tovar_id = ?"
         "order by date_op, id"
     )
-    cur.execute(sql, (tovar_id))
+    cur.execute(sql, [tovar_id])
     local_result = cur.fetchall()
     local.close()
     remote = connect_to_database(dsn, user, password)
     if remote is None:
         return {"status": "remote db not available"}
     cur = remote.cursor()
-    cur.execute(sql)
+    cur.execute(sql, [tovar_id])
     remote_result = cur.fetchall()
     remote.close()
     distance, operations = levenshtein_distance_operations(
@@ -267,4 +283,35 @@ def check_tovar_id(tovar_id):
         "remote_length": len(remote_result),
         "distance": distance,
         "operations": operations,
+    }
+
+
+def check_replication_status():
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "Local database is not available"}
+    cur = local.cursor()
+    cur.execute("SELECT count(*) FROM rpl_databases")
+    client_count = cur.fetchone()[0]
+    sql = "select count(*) from rpl_log"
+    cur.execute(sql)
+    records_count = cur.fetchone()[0]
+    sql = "SELECT alias, dbname, dbuser, dbpass FROM rpl_databases"
+    cur.execute(sql)
+    local_result = cur.fetchall()
+    clients = {}
+    for row in local_result:
+        alias, dsn, user, password = row
+        remote = connect_to_database(dsn, user, password)
+        if remote is None:
+            clients[alias] = "Not available"
+        else:
+            clients[alias] = "Available"
+        remote.close()
+    local.close()
+    return {
+        "status": "ok",
+        "stale_count": records_count,
+        "receiver_count": client_count,
+        "receivers": clients,
     }

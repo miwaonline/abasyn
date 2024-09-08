@@ -12,6 +12,7 @@ from db import (
 
 app = Flask(__name__)
 app.register_blueprint(api)
+app.json.ensure_ascii = False
 
 
 def signal_handler(sig, frame):
