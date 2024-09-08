@@ -4,7 +4,7 @@ import db
 api = Blueprint("api", __name__)
 
 
-@api.route("/api/status", methods=["GET"])
+@api.route("/api/status/", methods=["GET"])
 def status():
     logger.info("Getting status")
     listener = db.listener_thread()
@@ -13,14 +13,14 @@ def status():
         )
 
 
-@api.route("/api/repl/check/<tovar_id>/", methods=["GET"])
+@api.route("/api/repl/check/<id>/", methods=["GET"])
 def check(tovar_id):
     logger.info("Checking a commodity history differences")
-    result = db.check_tovar_id(tovar_id)
+    result = db.check_tovar_history(id)
     return jsonify(result)
 
 
-@api.route("/api/repl/check_all", methods=["GET"])
+@api.route("/api/repl/check_all/", methods=["GET"])
 def check_all():
     logger.info("Checking all commodities history differences")
     result = {"status": "to be implemented"}
@@ -34,20 +34,34 @@ def sync_status():
     return jsonify(result)
 
 
-@api.route("/api/repl/initialize", methods=["POST"])
+@api.route("/api/repl/initialize/", methods=["POST"])
 def sync_initialize():
     logger.info("Initializing replication")
-    result = {"status": "to be implemented"}
+    result = db.init_replication()
     return jsonify(result)
 
 
-@api.route("/api/repl/receiver/", methods=["GET", "POST", "DELETE"])
-def sync_receiver():
+@api.route("/api/repl/receiver/", methods=["POST"])
+@api.route("/api/repl/receiver/<id>/", methods=["GET", "DELETE"])
+def receiver(id=None):
     if request.method == "GET":
         logger.info("Getting receiver info")
+        result = db.get_receiver(id)
     elif request.method == "POST":
         logger.info("Creating receiver")
+        alias = request.get_json()["alias"]
+        dbname = request.get_json()["dbname"]
+        dbuser = request.get_json().get("dbuser", "SYSDBA")
+        dbpass = request.get_json().get("dbpass", "masterkey")
+        result = db.add_receiver(alias, dbname, dbuser, dbpass)
     elif request.method == "DELETE":
         logger.info("Deleting receiver")
-    result = {"status": "to be implemented"}
+        result = db.del_receiver(id)
+    return jsonify(result)
+
+
+@api.route("/api/repl/receivers/", methods=["GET"])
+def receivers():
+    logger.info("Listing receivers")
+    result = db.get_receivers()
     return jsonify(result)

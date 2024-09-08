@@ -251,7 +251,7 @@ def levenshtein_distance_operations(list1, list2):
     return matrix[-1][-1], operations[-1][-1]
 
 
-def check_tovar_id(tovar_id):
+def check_tovar_history(id):
     local = connect_to_database(**config["database"])
     if local is None:
         return {"status": "Local database is not available"}
@@ -264,14 +264,14 @@ def check_tovar_id(tovar_id):
         "from m_tovar where tovar_id = ?"
         "order by date_op, id"
     )
-    cur.execute(sql, [tovar_id])
+    cur.execute(sql, [id])
     local_result = cur.fetchall()
     local.close()
     remote = connect_to_database(dsn, user, password)
     if remote is None:
         return {"status": "remote db not available"}
     cur = remote.cursor()
-    cur.execute(sql, [tovar_id])
+    cur.execute(sql, [id])
     remote_result = cur.fetchall()
     remote.close()
     distance, operations = levenshtein_distance_operations(
@@ -315,3 +315,117 @@ def check_replication_status():
         "receiver_count": client_count,
         "receivers": clients,
     }
+
+
+def init_replication():
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "error",
+                "message": "Local database is not available"}
+    cur = local.cursor()
+    sql = "SELECT count(*) from RPL_TABLES"
+    cur.execute(sql)
+    table_count = cur.fetchone()[0]
+    if table_count > 0:
+        local.close()
+        return {"status": "warning",
+                "message": "Replication is already initialized"}
+    init_data = (
+        ('cr_group_tags', 0),
+        ('cr_tovar_tags', 0),
+        ('c_docum', 0),
+        ('c_eanserial', 0),
+        ('c_grouptovar', 0),
+        ('inc_delivery', 1),
+        ('inc_order', 1),
+        ('inc_price', 0),
+        ('inc_return', 1),
+        ('int_move', 1),
+        ('int_off', 1),
+        ('int_revision', 1),
+        ('m_money', 0),
+        ('out_bill', 1),
+        ('out_check', 1),
+        ('out_delivery', 1),
+        ('out_order', 1),
+        ('out_return', 1),
+        ('r_banks', 0),
+        ('r_cachedesks', 0),
+        ('r_contragents', 0),
+        ('r_contragents_subtypes', 0),
+        ('r_currencies', 0),
+        ('r_currency_courses', 0),
+        ('r_groups', 0),
+        ('r_prices', 0),
+        ('r_storages', 0),
+        ('r_tovar', 0),
+        ('r_workers', 0),
+        ('s_cash', 0),
+        ('s_discounts', 0),
+        ('s_netmarket', 0),
+        ('s_selections', 0),
+        ('s_tovarcredyt', 0),
+        ('tag_names', 0),
+        ('tag_values', 0)
+        )
+    sql = ("INSERT into RPL_TABLES(TABLE_NAME, RPL_ALLFIELDS, IS_DOCHEADER)"
+           " VALUES(?, 1, ?)")
+    for row in init_data:
+        cur.execute(sql, row)
+    local.commit()
+    sql = "EXECUTE PROCEDURE RPL_INSTALL"
+    cur.execute(sql)
+    local.commit()
+    local.close()
+    return {"status": "ok", "message": "Replication initialized successfully"}
+
+
+def get_receivers():
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "Local database is not available"}
+    cur = local.cursor()
+    sql = "SELECT id, alias, dbname FROM rpl_databases"
+    cur.execute(sql)
+    local_result = cur.fetchall()
+    local.close()
+    return {"status": "ok", "receivers": local_result}
+
+
+def get_receiver(id):
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "Local database is not available"}
+    cur = local.cursor()
+    sql = ("SELECT id, alias, dbname, dbuser, dbpass FROM rpl_databases"
+           " WHERE id = ?")
+    cur.execute(sql, [id])
+    local_result = cur.fetchone()
+    local.close()
+    return {"status": "ok", "receiver": local_result}
+
+
+def add_receiver(alias, dbname, dbuser, dbpass):
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "Local database is not available"}
+    cur = local.cursor()
+    sql = ("INSERT INTO rpl_databases (alias, dbname, dbuser, dbpass)"
+           " VALUES (?, ?, ?, ?) returning ID")
+    cur.execute(sql, [alias, dbname, dbuser, dbpass])
+    id = cur.fetchone()[0]
+    local.commit()
+    local.close()
+    return {"status": "ok", "id": id}
+
+
+def del_receiver(id):
+    local = connect_to_database(**config["database"])
+    if local is None:
+        return {"status": "Local database is not available"}
+    cur = local.cursor()
+    sql = "DELETE FROM rpl_databases WHERE id = ?"
+    cur.execute(sql, [id])
+    local.commit()
+    local.close()
+    return {"status": "ok"}
