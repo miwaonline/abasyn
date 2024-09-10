@@ -1,20 +1,20 @@
 from flask import Blueprint, jsonify, request
-from sysutils import logger
+from sysutils import logger, version
 import db
 api = Blueprint("api", __name__)
 
 
 @api.route("/api/status/", methods=["GET"])
 def status():
-    logger.info("Getting status")
+    logger.info("Getting app status")
     listener = db.listener_thread()
-    return jsonify(
-        listener.status() if listener else {"status": "stopped"}
-        )
+    res = listener.status() if listener else {"status": "stopped"}
+    res['version'] = version
+    return jsonify(res)
 
 
 @api.route("/api/repl/check/<id>/", methods=["GET"])
-def check(tovar_id):
+def check(id):
     logger.info("Checking a commodity history differences")
     result = db.check_tovar_history(id)
     return jsonify(result)

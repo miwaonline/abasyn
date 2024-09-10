@@ -3,6 +3,8 @@ import yaml
 import pathlib
 import sys
 
+version = '3.0.1'
+
 # Load configuration from YAML file
 path = pathlib.Path(__file__).parent.parent.absolute()
 cfg = path / "etc" / "abasyn.yml"
