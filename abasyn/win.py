@@ -9,10 +9,12 @@ import sys
 
 
 class AbasynService(win32serviceutil.ServiceFramework):
-    _svc_name_ = "AbasynService"
+    _svc_name_ = "Abasyn"
     _svc_display_name_ = "Abasyn Windows Service"
-    _svc_description_ = ("This is a Windows service for running database "
-                         "replication and/or syncronisation for Abacus.")
+    _svc_description_ = (
+        "This is a service for continuous running database "
+        "replication and/or syncronisation for Abacus."
+    )
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
@@ -28,7 +30,7 @@ class AbasynService(win32serviceutil.ServiceFramework):
         servicemanager.LogMsg(
             servicemanager.EVENTLOG_INFORMATION_TYPE,
             servicemanager.PYS_SERVICE_STARTED,
-            (self._svc_name_, '')
+            (self._svc_name_, ""),
         )
         self.run_flask_app()
 
@@ -38,11 +40,13 @@ class AbasynService(win32serviceutil.ServiceFramework):
 
 if __name__ == "__main__":
     win32serviceutil.HandleCommandLine(AbasynService)
-
-    # Configure service recovery options automatically upon installation
-    if 'install' in sys.argv:
-        service_name = "AbasynService"
+    if "install" in sys.argv:
+        service_name = "Abasyn"
+        subprocess.run(f"sc start {service_name}", shell=True, check=True)
+        subprocess.run(
+            f"sc config {service_name} start= auto", shell=True, check=True
+        )
         subprocess.run(
             f"sc failure {service_name} reset= 60 actions= restart/60000",
-            shell=True
+            shell=True,
         )
