@@ -5,7 +5,7 @@ mkdir -p debian
 mkdir -p opt/abasyn/{abasyn,etc}
 mkdir -p usr/lib/systemd/system
 
-# Place your files into the respective directories
+# Place our files into the respective directories
 cp ../abasyn/*py opt/abasyn/abasyn/
 rm opt/abasyn/abasyn/win.py
 cp ../etc/* opt/abasyn/etc/

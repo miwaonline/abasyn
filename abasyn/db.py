@@ -302,12 +302,12 @@ def check_replication_status():
     clients = {}
     for row in local_result:
         alias, dsn, user, password = row
-        remote = connect_to_database(dsn, user, password)
+        remote = connect_to_database(dsn, user, password, timeout=10)
         if remote is None:
             clients[alias] = "Not available"
         else:
             clients[alias] = "Available"
-        remote.close()
+            remote.close()
     local.close()
     return {
         "status": "ok",
@@ -317,7 +317,7 @@ def check_replication_status():
     }
 
 
-def init_replication():
+def init_replication(init_data=None):
     local = connect_to_database(**config["database"])
     if local is None:
         return {"status": "error",
@@ -330,7 +330,7 @@ def init_replication():
         local.close()
         return {"status": "warning",
                 "message": "Replication is already initialized"}
-    init_data = (
+    init_data = init_data or (
         ('cr_group_tags', 0),
         ('cr_tovar_tags', 0),
         ('c_docum', 0),

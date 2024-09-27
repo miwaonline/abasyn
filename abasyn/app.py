@@ -13,6 +13,7 @@ from db import (
 app = Flask(__name__)
 app.register_blueprint(api)
 app.json.ensure_ascii = False
+listener = listener_thread()
 
 
 def signal_handler(sig, frame):
@@ -41,9 +42,8 @@ def setup_signal_handlers():
     signal.signal(signal.SIGTERM, signal_handler)  # Handle termination signals
 
 
-if __name__ == "__main__":
+def main():
     setup_signal_handlers()
-    listener = listener_thread()
     try:
         serve(app, host="0.0.0.0", port=config["webservice"]["port"])
     except KeyboardInterrupt:
@@ -54,3 +54,7 @@ if __name__ == "__main__":
     finally:
         if listener.is_alive():
             listener.join()
+
+
+if __name__ == "__main__":
+    main()
