@@ -5,12 +5,14 @@ import servicemanager
 import socket
 import subprocess
 from app import app
+from waitress import serve
+from sysutils import config
 import sys
 
 
 class AbasynService(win32serviceutil.ServiceFramework):
     _svc_name_ = "Abasyn"
-    _svc_display_name_ = "Abasyn Windows Service"
+    _svc_display_name_ = "Abacus' Abasyn Service"
     _svc_description_ = (
         "This is a service for continuous running database "
         "replication and/or syncronisation for Abacus."
@@ -35,7 +37,7 @@ class AbasynService(win32serviceutil.ServiceFramework):
         self.run_flask_app()
 
     def run_flask_app(self):
-        app.run(host="0.0.0.0", port=5000)
+        serve(app, host="0.0.0.0", port=config["webservice"]["port"])
 
 
 if __name__ == "__main__":
