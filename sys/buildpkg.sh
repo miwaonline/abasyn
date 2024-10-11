@@ -1,5 +1,5 @@
 #!/bin/bash
-ABASYN_PKG_VERSION=3.0-1
+ABASYN_PKG_VERSION=3.0.0-1
 # Create necessary directories
 mkdir -p debian
 mkdir -p opt/abasyn/{abasyn,etc}

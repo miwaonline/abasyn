@@ -41,13 +41,10 @@ class ProcessingThread(threading.Thread):
                 self.local_connect.rollback()
                 # push replication data to remote db
                 remotecur = self.remote_connect.cursor()
-                sql = (
-                    "select rdb$set_context('USER_SESSION', "
-                    "'replicating_now', 1) from rdb$database"
-                )
+                sql = "EXECUTE PROCEDURE set_replicating_now('1')"
                 remotecur.execute(sql)
                 for change in changes:
-                    logger.debug(f"Pushing change: {change[1]}")
+                    logger.info(f"Pushing change: {change[1]}")
                     remotecur.execute(change[1])
                     self.records_processed += 1
                     last_pushed_id = change[0]
