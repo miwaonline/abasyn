@@ -2,3 +2,5 @@ Flask
 black
 pyyaml
 fdb
+waitress
+

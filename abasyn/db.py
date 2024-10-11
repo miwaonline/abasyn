@@ -51,15 +51,21 @@ class ProcessingThread(threading.Thread):
                 self.remote_connect.commit()
                 logger.info(f"Pushed {self.records_processed} records")
                 # clean up local db
-                sql = "update rpl_databases set last_id = ?"
-                localcur.execute(sql, [last_pushed_id])
-                sql = (
-                    "delete from rpl_log where id <= (select min(last_id)"
-                    " from rpl_databases)"
-                )
-                localcur.execute(sql)
-                self.local_connect.commit()
-                logger.info("Cleaned up local db")
+                if last_pushed_id is not None:
+                    sql = "update rpl_databases set last_id = ?"
+                    localcur.execute(sql, [last_pushed_id])
+                    sql = (
+                        "delete from rpl_log where id <= (select min(last_id)"
+                        " from rpl_databases)"
+                    )
+                    localcur.execute(sql)
+                    self.local_connect.commit()
+                    logger.info("Cleaned up local db")
+                else:
+                    logger.warning(
+                        "Nothing has been pushed after the event. Please check"
+                        " your replication settings."
+                        )
         except fdb.fbcore.DatabaseError as e:
             logger.error(f"Failed to process event, DB error: {e}")
         except Exception as e:
