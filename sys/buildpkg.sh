@@ -37,7 +37,7 @@ Build-Depends: debhelper (>= 11)
 
 Package: abasyn
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}, python3-simplejson, python3-flask, systemd, python3-yaml, python3-waitress, python3-fdb, libfbclient2
+Depends: \${shlibs:Depends}, \${misc:Depends}, systemd, python3, python3-pip, python3-simplejson, python3-flask, python3-yaml, python3-waitress, libfbclient2
 Description: Abasyn package
  This package installs Abasyn software." > debian/control
 
@@ -55,7 +55,7 @@ echo "/opt/abasyn/etc/abasyn.yml" > debian/conffiles
 # Create the postinst script
 echo "#!/bin/bash
 set -e
-
+pip3 install fdb --break-system-packages
 systemctl daemon-reload
 systemctl enable abasyn.service
 systemctl start abasyn.service" > debian/postinst
@@ -70,7 +70,7 @@ systemctl disable abasyn.service" > debian/prerm
 chmod 755 debian/prerm
 
 # Create the changelog file
-echo "abasyn ($abasyn_PKG_VERSION) unstable; urgency=low
+echo "abasyn ($ABASYN_PKG_VERSION) unstable; urgency=low
 
   * Completely rewritten release.
 
@@ -93,10 +93,10 @@ dpkg-buildpackage -us -uc
 rm -rf debian/
 rm -rf opt/
 rm -rf usr/
-rm -f ../abasyn_${abasyn_PKG_VERSION}_amd64.buildinfo
-rm -f ../abasyn_${abasyn_PKG_VERSION}_amd64.changes
-rm -f ../abasyn_${abasyn_PKG_VERSION}.dsc
-rm -f ../abasyn_${abasyn_PKG_VERSION}.tar.gz
-rm -f ../abasyn-dbgsym_${abasyn_PKG_VERSION}_amd64.ddeb
+rm -f ../abasyn_${ABASYN_PKG_VERSION}_amd64.buildinfo
+rm -f ../abasyn_${ABASYN_PKG_VERSION}_amd64.changes
+rm -f ../abasyn_${ABASYN_PKG_VERSION}.dsc
+rm -f ../abasyn_${ABASYN_PKG_VERSION}.tar.gz
+rm -f ../abasyn-dbgsym_${ABASYN_PKG_VERSION}_amd64.ddeb
 # Test the package; uncomment once ready
 # piuparts abasyn.deb
